@@ -11,7 +11,7 @@ so it cannot drift out of date silently.
 
 ```bash
 docker run -d --name hangfire-pg \
-  -e POSTGRES_PASSWORD='Asd123!1' -e POSTGRES_DB=hangfire \
+  -e POSTGRES_PASSWORD='test_password' -e POSTGRES_DB=hangfire \
   -p 5432:5432 postgres:17-alpine
 
 docker run -d --name hangfire-valkey -p 6379:6379 valkey/valkey:8-alpine
@@ -31,7 +31,7 @@ dotnet add package Hangfire.AspNetCore
 ```json
 {
   "ConnectionStrings": {
-    "Postgres": "Host=localhost;Port=5432;Database=hangfire;Username=postgres;Password=Asd123!1",
+    "Postgres": "Host=localhost;Port=5432;Database=hangfire;Username=postgres;Password=test_password",
     "Valkey": "localhost:6379"
   }
 }

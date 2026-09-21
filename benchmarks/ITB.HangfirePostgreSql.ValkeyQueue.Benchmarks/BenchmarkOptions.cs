@@ -4,7 +4,7 @@ namespace ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks;
 internal sealed class BenchmarkOptions
 {
     public string PostgresConnectionString { get; private set; } =
-        "Host=localhost;Port=55432;Database=hangfire_bench;Username=postgres;Password=Asd123!1";
+        "Host=localhost;Port=55432;Database=hangfire_bench;Username=postgres;Password=test_password";
 
     public string ValkeyConnectionString { get; private set; } = "localhost:56379";
 

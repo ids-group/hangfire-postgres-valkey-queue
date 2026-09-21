@@ -103,7 +103,7 @@ zero load for both arms.
 
 ```bash
 docker run -d --name hfvq-pg \
-  -e POSTGRES_PASSWORD='Asd123!1' -e POSTGRES_DB=hangfire_bench \
+  -e POSTGRES_PASSWORD='test_password' -e POSTGRES_DB=hangfire_bench \
   -p 55432:5432 postgres:17-alpine \
   -c shared_preload_libraries=pg_stat_statements \
   -c pg_stat_statements.track=all
