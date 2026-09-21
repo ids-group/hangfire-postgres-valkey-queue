@@ -5,9 +5,31 @@ of truth (job data, state history, scheduled/recurring jobs, dashboard); only th
 IDs) moves to Valkey — `LPUSH` to enqueue, blocking `BLMOVE` to dequeue — so idle worker polling load
 on PostgreSQL drops toward zero.
 
-In a measured run, an idle Hangfire server's PostgreSQL load fell by **97.6 %** (1.37 → 0.03
-queries/s). Per-job cost fell 12.5 %, and throughput was unchanged. Full methodology, environment and
-caveats: [docs/LOAD-TEST.md](https://github.com/ids-group/hangfire-postgres-valkey-queue/blob/main/docs/LOAD-TEST.md).
+## Measured effect
+
+PostgreSQL-side load counted from `pg_stat_statements` — the statements the server actually executed.
+Two arms in separate schemas: stock Hangfire.PostgreSql, and the same setup with this provider.
+
+| Metric | PostgreSQL only | With Valkey | Change |
+| --- | ---: | ---: | ---: |
+| Idle Hangfire queries (120 s) | 164 | 4 | **−97.6 %** |
+| Idle queries / second | 1.37 | 0.03 | **−97.6 %** |
+| Idle transaction-control calls | 486 | 6 | **−98.8 %** |
+| Queries per job (2 000 jobs) | 32.00 | 28.00 | −12.5 % |
+| PostgreSQL exec time during drain | 1 576–1 598 ms | 1 318–1 362 ms | −15 % |
+| Throughput | 290–292 jobs/s | 296–310 jobs/s | +2 to +6 % |
+
+**The idle row is the result that matters.** An idle Hangfire server drops from ~1.37 queries/s to
+~0.03; the remaining 4 queries are the maintenance pass, not polling. Per-job cost falls only 12.5 %
+because PostgreSQL still stores the job row, its parameters and every state transition — only the
+queue hop moves. Throughput is unchanged: the +2–6 % is run-to-run noise, and should be read as "no
+regression" rather than a speedup.
+
+Measured on an Apple M2 Pro with PostgreSQL 17 and Valkey 8 in local containers, 20 workers,
+`QueuePollInterval` at the 15 s default. Absolute figures are a property of that machine; the
+relative query counts were identical across runs. Methodology, the reproducible harness and what the
+test does *not* cover:
+[docs/LOAD-TEST.md](https://github.com/ids-group/hangfire-postgres-valkey-queue/blob/main/docs/LOAD-TEST.md).
 
 > **Where the win is.** On Hangfire.PostgreSql 1.21.1 the baseline already wakes idle workers via
 > PostgreSQL `LISTEN`/`NOTIFY`, so the pickup-latency win is marginal and the reduction under
