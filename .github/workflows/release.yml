@@ -83,22 +83,23 @@ jobs:
           -c Release --no-build
           -p:Version=${{ steps.version.outputs.version }}
           -o artifacts
+
       - name: Authenticate to NuGet
         uses: NuGet/login@v1
         id: nuget-login
         with:
-          user: ivnk_w
+          user: ids-group
 
       - name: Publish to NuGet
         env:
           NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
-          # --skip-duplicate keeps a re-run of the same tag from failing the job; nuget.org
-          # rejects a re-push of an existing version by design.
+          # No --skip-duplicate: it turns a server-side rejection into a zero exit code,
+          # so the job goes green while nothing is published. A tag that collides with an
+          # existing version should fail loudly and be re-cut under a new version instead.
           dotnet nuget push "artifacts/*.nupkg" \
             --api-key "$NUGET_API_KEY" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
+            --source https://api.nuget.org/v3/index.json
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
