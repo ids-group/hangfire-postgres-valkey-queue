@@ -14,7 +14,7 @@
        .github/workflows/release.yml); the value here is only the local-build fallback. -->
   <PropertyGroup>
     <PackageId>ITB.HangfirePostgreSql.ValkeyQueue</PackageId>
-    <Version>0.1.0-alpha</Version>
+    <Version>1.0.0</Version>
     <Authors>IDS Tech</Authors>
     <Company>IDS Tech</Company>
     <Product>ITB Hangfire PostgreSQL Valkey Queue</Product>

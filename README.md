@@ -12,10 +12,10 @@ In a measured run, an idle Hangfire server's PostgreSQL load fell by **97.6 %** 
 queries/s). Per-job cost fell 12.5 %, and throughput was unchanged. Full methodology, environment and
 caveats: [docs/LOAD-TEST.md](docs/LOAD-TEST.md).
 
-> **Prerelease.** On Hangfire.PostgreSql 1.21.1 the baseline already wakes idle workers via PostgreSQL
-> `LISTEN`/`NOTIFY`, so the pickup-latency win is marginal and the reduction under *sustained* load is
-> modest. The win is idle database load. Validate against your own workload before relying on it, and
-> keep pure-PostgreSQL as the fallback.
+> **Where the win is.** On Hangfire.PostgreSql 1.21.1 the baseline already wakes idle workers via
+> PostgreSQL `LISTEN`/`NOTIFY`, so the pickup-latency win is marginal and the reduction under
+> *sustained* load is modest. The win is idle database load — measure against your own workload
+> before adopting it, and keep pure-PostgreSQL as the fallback.
 
 ## Installation
 
