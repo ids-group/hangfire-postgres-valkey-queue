@@ -1,0 +1,106 @@
+name: Release
+
+# Publishing is driven by a version tag, so the released version is always traceable to a commit:
+#   git tag v1.0.0 && git push origin v1.0.0
+# A tag with a prerelease suffix (v1.0.0-beta.1) publishes as a prerelease package.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    env:
+      POSTGRES_DB: ${{ secrets.POSTGRES_TEST_DB || 'hangfire_bench' }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_TEST_USER || 'postgres' }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD || 'postgres' }}
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_TEST_DB || 'hangfire_bench' }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_TEST_USER || 'postgres' }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD || 'postgres' }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # SourceLink embeds commit information, which needs real history rather than a shallow clone.
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Derive version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing version $VERSION"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release -p:Version=${{ steps.version.outputs.version }}
+
+      # The tag is not trusted on its own: a release that cannot pass its own suite must not reach
+      # nuget.org, where a published version can never be replaced.
+      - name: Test
+        env:
+          POSTGRES_TEST_CONNECTION: "Host=localhost;Port=5432;Database=${{ env.POSTGRES_DB }};Username=${{ env.POSTGRES_USER }};Password=${{ env.POSTGRES_PASSWORD }}"
+          REDIS_TEST_HOST: localhost
+          REDIS_TEST_PORT: 6379
+        run: dotnet test --no-build -c Release --logger "console;verbosity=minimal"
+
+      - name: Pack
+        run: >-
+          dotnet pack src/IDS.HangfirePostgreSql.ValkeyQueue
+          -c Release --no-build
+          -p:Version=${{ steps.version.outputs.version }}
+          -o artifacts
+
+      - name: Publish to NuGet
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::NUGET_API_KEY secret is not set — add it in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          # --skip-duplicate keeps a re-run of the same tag from failing the job; nuget.org
+          # rejects a re-push of an existing version by design.
+          dotnet nuget push "artifacts/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.nupkg
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}

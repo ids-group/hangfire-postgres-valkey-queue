@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  POSTGRES_DB: ${{ secrets.POSTGRES_TEST_DB || 'hangfire_bench' }}
+  POSTGRES_USER: ${{ secrets.POSTGRES_TEST_USER || 'postgres' }}
+  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD || 'postgres' }}
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ${{ secrets.POSTGRES_TEST_DB || 'hangfire_bench' }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_TEST_USER || 'postgres' }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_TEST_PASSWORD || 'postgres' }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      valkey:
+        image: valkey/valkey:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore -c Release
+
+      - name: Test
+        env:
+          POSTGRES_TEST_CONNECTION: "Host=localhost;Port=5432;Database=${{ env.POSTGRES_DB }};Username=${{ env.POSTGRES_USER }};Password=${{ env.POSTGRES_PASSWORD }}"
+          REDIS_TEST_HOST: localhost
+          REDIS_TEST_PORT: 6379
+        run: >-
+          dotnet test --no-build -c Release
+          --logger "console;verbosity=minimal"
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory test-results
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+
+      - name: Pack (verification only)
+        run: dotnet pack src/IDS.HangfirePostgreSql.ValkeyQueue -c Release --no-build -o artifacts
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*.nupkg

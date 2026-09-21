@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Hangfire.PostgreSql.ValkeyQueue</RootNamespace>
+    <AssemblyName>IDS.HangfirePostgreSql.ValkeyQueue</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- NuGet package metadata. Version comes from the git tag in CI (see
+       .github/workflows/release.yml); the value here is only the local-build fallback. -->
+  <PropertyGroup>
+    <PackageId>IDS.HangfirePostgreSql.ValkeyQueue</PackageId>
+    <Version>0.1.0-alpha</Version>
+    <Authors>IDS Tech</Authors>
+    <Company>IDS Tech</Company>
+    <Product>IDS Hangfire PostgreSQL Valkey Queue</Product>
+    <Description>A Valkey/Redis-backed queue provider for Hangfire.PostgreSql. PostgreSQL stays the durable source of truth (job data, state history, dashboard); only the hot queue path moves to Valkey, so idle worker polling load on PostgreSQL drops toward zero.</Description>
+    <PackageTags>hangfire;postgresql;valkey;redis;queue;background-jobs</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/ids-group/hangfire-postgres-valkey-queue</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/ids-group/hangfire-postgres-valkey-queue</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <!-- Deterministic builds in CI so the package is reproducible from the tag. -->
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hangfire.Core" Version="1.8.23" />
+    <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
+    <PackageReference Include="StackExchange.Redis" Version="2.8.24" />
+    <PackageReference Include="Npgsql" Version="10.0.*" />
+    <!-- Pin over the vulnerable Newtonsoft.Json 11.0.1 that Hangfire.Core pulls in
+         transitively (GHSA-5crp-9r3c-p9vr). -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <!-- 10.x, not 8.0.0: that pulls Microsoft.Build.Tasks.Git 8.0.0, which carries
+         GHSA-23fw-v26w-5fgq (NU1902). -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.401" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>
