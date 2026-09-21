@@ -72,7 +72,7 @@ jobs:
           path: test-results/
 
       - name: Pack (verification only)
-        run: dotnet pack src/IDS.HangfirePostgreSql.ValkeyQueue -c Release --no-build -o artifacts
+        run: dotnet pack src/ITB.HangfirePostgreSql.ValkeyQueue -c Release --no-build -o artifacts
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4

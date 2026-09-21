@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 using Xunit;
 
-namespace IDS.HangfirePostgreSql.ValkeyQueue.Tests;
+namespace ITB.HangfirePostgreSql.ValkeyQueue.Tests;
 
 /// <summary>
 /// The configuration shown in <c>docs/EXAMPLE.md</c>, compiled and executed.

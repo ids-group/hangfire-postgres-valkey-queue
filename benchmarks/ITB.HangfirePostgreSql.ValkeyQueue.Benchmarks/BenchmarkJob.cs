@@ -1,4 +1,4 @@
-namespace IDS.HangfirePostgreSql.ValkeyQueue.Benchmarks;
+namespace ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks;
 
 /// <summary>
 /// The unit of work. Deliberately empty: the benchmark measures the cost of moving a job THROUGH

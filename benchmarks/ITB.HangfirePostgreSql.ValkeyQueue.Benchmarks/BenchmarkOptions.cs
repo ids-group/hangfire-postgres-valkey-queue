@@ -1,4 +1,4 @@
-namespace IDS.HangfirePostgreSql.ValkeyQueue.Benchmarks;
+namespace ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks;
 
 /// <summary>Command-line knobs for a run. Defaults match the numbers published in docs/LOAD-TEST.md.</summary>
 internal sealed class BenchmarkOptions

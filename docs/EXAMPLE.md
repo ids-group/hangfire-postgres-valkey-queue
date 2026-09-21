@@ -4,7 +4,7 @@ A complete ASP.NET Core worker that runs Hangfire on PostgreSQL with the queue o
 that matters is here — this is not a fragment.
 
 The code below is compiled as part of CI
-([`tests/.../ConfigurationExampleTests.cs`](../tests/IDS.HangfirePostgreSql.ValkeyQueue.Tests/ConfigurationExampleTests.cs)),
+([`tests/.../ConfigurationExampleTests.cs`](../tests/ITB.HangfirePostgreSql.ValkeyQueue.Tests/ConfigurationExampleTests.cs)),
 so it cannot drift out of date silently.
 
 ## 1. Local infrastructure
@@ -20,7 +20,7 @@ docker run -d --name hangfire-valkey -p 6379:6379 valkey/valkey:8-alpine
 ## 2. Packages
 
 ```bash
-dotnet add package IDS.HangfirePostgreSql.ValkeyQueue
+dotnet add package ITB.HangfirePostgreSql.ValkeyQueue
 dotnet add package Hangfire.AspNetCore
 ```
 

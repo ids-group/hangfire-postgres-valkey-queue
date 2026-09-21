@@ -4,7 +4,7 @@ This is the measurement behind the library's claim: moving the hot queue path to
 idle worker poll from PostgreSQL. It reports what was actually measured, including the parts that did
 not improve.
 
-The harness is in [`benchmarks/`](../benchmarks/IDS.HangfirePostgreSql.ValkeyQueue.Benchmarks) and is
+The harness is in [`benchmarks/`](../benchmarks/ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks) and is
 runnable — every number below can be reproduced with the command in [Running it](#running-it).
 
 ## What is measured
@@ -110,7 +110,7 @@ docker run -d --name hfvq-pg \
 
 docker run -d --name hfvq-valkey -p 56379:6379 valkey/valkey:8-alpine
 
-dotnet run --project benchmarks/IDS.HangfirePostgreSql.ValkeyQueue.Benchmarks -c Release -- \
+dotnet run --project benchmarks/ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks -c Release -- \
   --jobs 2000 --workers 20 --idle-seconds 120
 ```
 

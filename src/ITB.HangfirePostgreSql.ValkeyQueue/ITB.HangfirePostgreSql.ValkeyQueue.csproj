@@ -6,18 +6,18 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <RootNamespace>Hangfire.PostgreSql.ValkeyQueue</RootNamespace>
-    <AssemblyName>IDS.HangfirePostgreSql.ValkeyQueue</AssemblyName>
+    <AssemblyName>ITB.HangfirePostgreSql.ValkeyQueue</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <!-- NuGet package metadata. Version comes from the git tag in CI (see
        .github/workflows/release.yml); the value here is only the local-build fallback. -->
   <PropertyGroup>
-    <PackageId>IDS.HangfirePostgreSql.ValkeyQueue</PackageId>
+    <PackageId>ITB.HangfirePostgreSql.ValkeyQueue</PackageId>
     <Version>0.1.0-alpha</Version>
     <Authors>IDS Tech</Authors>
     <Company>IDS Tech</Company>
-    <Product>IDS Hangfire PostgreSQL Valkey Queue</Product>
+    <Product>ITB Hangfire PostgreSQL Valkey Queue</Product>
     <Description>A Valkey/Redis-backed queue provider for Hangfire.PostgreSql. PostgreSQL stays the durable source of truth (job data, state history, dashboard); only the hot queue path moves to Valkey, so idle worker polling load on PostgreSQL drops toward zero.</Description>
     <PackageTags>hangfire;postgresql;valkey;redis;queue;background-jobs</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

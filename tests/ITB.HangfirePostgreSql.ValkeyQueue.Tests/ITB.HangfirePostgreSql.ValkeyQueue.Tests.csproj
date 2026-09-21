@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/IDS.HangfirePostgreSql.ValkeyQueue/IDS.HangfirePostgreSql.ValkeyQueue.csproj" />
+    <ProjectReference Include="../../src/ITB.HangfirePostgreSql.ValkeyQueue/ITB.HangfirePostgreSql.ValkeyQueue.csproj" />
   </ItemGroup>
 
 </Project>

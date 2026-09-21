@@ -79,7 +79,7 @@ jobs:
 
       - name: Pack
         run: >-
-          dotnet pack src/IDS.HangfirePostgreSql.ValkeyQueue
+          dotnet pack src/ITB.HangfirePostgreSql.ValkeyQueue
           -c Release --no-build
           -p:Version=${{ steps.version.outputs.version }}
           -o artifacts

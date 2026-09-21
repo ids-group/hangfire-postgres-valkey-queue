@@ -10,7 +10,7 @@ using Npgsql;
 using StackExchange.Redis;
 using Xunit;
 
-namespace IDS.HangfirePostgreSql.ValkeyQueue.Tests;
+namespace ITB.HangfirePostgreSql.ValkeyQueue.Tests;
 
 /// <summary>
 /// The Valkey hybrid queue. Postgres stays the durable store; only the hot job-id queue moves to

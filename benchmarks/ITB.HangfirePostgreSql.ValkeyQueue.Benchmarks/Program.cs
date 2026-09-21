@@ -1,5 +1,5 @@
 using System.Globalization;
-using IDS.HangfirePostgreSql.ValkeyQueue.Benchmarks;
+using ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks;
 
 var options = BenchmarkOptions.Parse(args);
 

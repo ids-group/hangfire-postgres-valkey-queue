@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
-    <RootNamespace>IDS.HangfirePostgreSql.ValkeyQueue.Benchmarks</RootNamespace>
+    <RootNamespace>ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/IDS.HangfirePostgreSql.ValkeyQueue/IDS.HangfirePostgreSql.ValkeyQueue.csproj" />
+    <ProjectReference Include="../../src/ITB.HangfirePostgreSql.ValkeyQueue/ITB.HangfirePostgreSql.ValkeyQueue.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
 using System.Globalization;
 using Npgsql;
 
-namespace IDS.HangfirePostgreSql.ValkeyQueue.Benchmarks;
+namespace ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks;
 
 /// <summary>A pg_stat_statements snapshot: how much work Postgres actually did.</summary>
 internal sealed record PostgresLoad(long Calls, double TotalExecMs, long RowsRead)

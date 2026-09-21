@@ -2,7 +2,7 @@ using Npgsql;
 using StackExchange.Redis;
 using Xunit;
 
-namespace IDS.HangfirePostgreSql.ValkeyQueue.Tests;
+namespace ITB.HangfirePostgreSql.ValkeyQueue.Tests;
 
 /// <summary>
 /// The Postgres and Valkey endpoints the suite runs against, read from environment variables so the

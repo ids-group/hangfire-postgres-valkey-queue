@@ -1,6 +1,6 @@
-# IDS.HangfirePostgreSql.ValkeyQueue
+# ITB.HangfirePostgreSql.ValkeyQueue
 
-[![NuGet](https://img.shields.io/nuget/v/IDS.HangfirePostgreSql.ValkeyQueue.svg)](https://www.nuget.org/packages/IDS.HangfirePostgreSql.ValkeyQueue/)
+[![NuGet](https://img.shields.io/nuget/v/ITB.HangfirePostgreSql.ValkeyQueue.svg)](https://www.nuget.org/packages/ITB.HangfirePostgreSql.ValkeyQueue/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A Valkey/Redis-backed queue provider for **Hangfire.PostgreSql**. PostgreSQL stays the durable source
@@ -20,7 +20,7 @@ caveats: [docs/LOAD-TEST.md](docs/LOAD-TEST.md).
 ## Installation
 
 ```bash
-dotnet add package IDS.HangfirePostgreSql.ValkeyQueue
+dotnet add package ITB.HangfirePostgreSql.ValkeyQueue
 ```
 
 Targets .NET 10. Requires Hangfire.PostgreSql 1.21.x and a Valkey (or Redis) 7+ server.

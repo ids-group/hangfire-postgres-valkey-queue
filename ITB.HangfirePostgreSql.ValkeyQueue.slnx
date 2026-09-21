@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks/ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/ITB.HangfirePostgreSql.ValkeyQueue/ITB.HangfirePostgreSql.ValkeyQueue.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ITB.HangfirePostgreSql.ValkeyQueue.Tests/ITB.HangfirePostgreSql.ValkeyQueue.Tests.csproj" />
+  </Folder>
+</Solution>

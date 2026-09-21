@@ -6,7 +6,7 @@ using Hangfire.PostgreSql.ValkeyQueue;
 using Npgsql;
 using StackExchange.Redis;
 
-namespace IDS.HangfirePostgreSql.ValkeyQueue.Benchmarks;
+namespace ITB.HangfirePostgreSql.ValkeyQueue.Benchmarks;
 
 /// <summary>The measured result of one arm of the comparison.</summary>
 internal sealed record ScenarioResult(
