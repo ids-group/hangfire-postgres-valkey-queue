@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Transactions;
 using FluentAssertions;
 using Hangfire;
 using Hangfire.Common;
@@ -207,6 +208,62 @@ public class ValkeyJobQueueTests(ValkeyQueueFixture fixture)
 
         monitoring.GetEnqueuedJobIds(Queue, 0, 100)
             .Count(id => id == jobId).Should().Be(1);
+    }
+
+    [Fact]
+    public void An_enqueue_inside_a_transaction_stays_invisible_until_it_commits()
+    {
+        // The id must NOT be publishable while the caller's transaction is still open. Hangfire calls
+        // Enqueue from inside PostgreSqlWriteOnlyTransaction.Commit, which is still writing
+        // job.statename = 'Enqueued'; a worker woken by an early push reads a job that is not Enqueued
+        // yet and Hangfire's Worker.Execute drops it from the queue, so it waits out the reconciler.
+        using var mux = Connect();
+        var (queue, monitoring) = Build(mux);
+
+        using (var scope = new TransactionScope())
+        {
+            queue.Enqueue(null!, Queue, "101");
+
+            Count(monitoring).Should().Be(new QueueCounts(0, 0),
+                "the transaction has not committed, so no worker may see the id yet");
+
+            scope.Complete();
+        }
+
+        Count(monitoring).Should().Be(new QueueCounts(1, 0), "committing publishes it");
+        monitoring.GetEnqueuedJobIds(Queue, 0, 10).Should().Contain(101);
+    }
+
+    [Fact]
+    public void An_enqueue_in_a_rolled_back_transaction_is_never_published()
+    {
+        // The other half: a job whose creation rolled back does not exist, so an id left in the list
+        // is a phantom — a worker picks it up, finds no such job and discards it, logging noise for
+        // work that was never scheduled.
+        using var mux = Connect();
+        var (queue, monitoring) = Build(mux);
+
+        using (var unused = new TransactionScope())
+        {
+            queue.Enqueue(null!, Queue, "102");
+
+            // No Complete() — disposing the scope rolls it back.
+        }
+
+        Count(monitoring).Should().Be(new QueueCounts(0, 0));
+        monitoring.GetEnqueuedJobIds(Queue, 0, 10).Should().NotContain(102);
+    }
+
+    [Fact]
+    public void An_enqueue_without_an_ambient_transaction_is_published_immediately()
+    {
+        // Not every caller has a TransactionScope — the deferral must not strand those.
+        using var mux = Connect();
+        var (queue, monitoring) = Build(mux);
+
+        queue.Enqueue(null!, Queue, "103");
+
+        Count(monitoring).Should().Be(new QueueCounts(1, 0));
     }
 
     /// <summary>

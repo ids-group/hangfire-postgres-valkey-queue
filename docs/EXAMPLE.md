@@ -174,6 +174,7 @@ without `UseValkeyQueues` — that is exactly what [LOAD-TEST.md](LOAD-TEST.md) 
 | Jobs vanish after a Valkey failover | `ValkeyQueueMaintenance` not registered, so the reconciler never runs. |
 | `CROSSSLOT` errors on a Valkey cluster | A custom `KeyPrefix` that breaks the `{queue}` hash tag. Keep the prefix free of braces. |
 | The reconciler logs data-loss warnings constantly | `Schema` does not match Hangfire's actual schema, so it reads the wrong tables. |
+| Occasional jobs start ~30-45 s late, with a reconciler data-loss warning and no Valkey outage | Fixed in 1.0.2. Before it, the `LPUSH` happened inside the enqueueing transaction, so a worker could pick the id up before the commit was visible and discard it. Upgrade. |
 
 ## Migrating an existing Hangfire installation
 
