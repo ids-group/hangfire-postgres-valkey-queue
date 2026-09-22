@@ -1,4 +1,5 @@
 using System.Data;
+using System.Transactions;
 using Hangfire.Logging;
 using Hangfire.Storage;
 using StackExchange.Redis;
@@ -45,13 +46,70 @@ internal sealed class ValkeyJobQueue : IPersistentJobQueue
         // Postgres is the whole point. The job row + its Enqueued state are still
         // written to Postgres transactionally by the caller, so if this LPUSH is
         // lost (Valkey down), the job stays Enqueued in Postgres and the reconciler
-        // re-pushes it. Hence we swallow connection failures rather than failing the
-        // whole job-creation transaction.
+        // re-pushes it.
+        //
+        // The push must wait for that transaction to COMMIT. Hangfire.PostgreSql calls
+        // this from inside PostgreSqlWriteOnlyTransaction.Commit, i.e. within the
+        // TransactionScope that is still writing job.statename = 'Enqueued'. Pushing
+        // there publishes the id to every worker while the state change is invisible to
+        // every other connection, and a worker parked in BLMOVE wakes in microseconds:
+        // it reads a job that is not Enqueued yet, and Hangfire's Worker.Execute treats
+        // "not in the expected state" as "forget it" and calls RemoveFromQueue. The job
+        // is not lost — Postgres commits a moment later and still says Enqueued — but it
+        // is gone from Valkey until the reconciler notices, which costs ReconcileGrace +
+        // MaintenanceInterval and logs a data-loss warning that misdescribes the cause.
+        //
+        // Deferring to TransactionCompleted is what Hangfire.PostgreSql itself does for
+        // its own queue-notification signal, for exactly this reason. It also stops a
+        // rolled-back transaction from leaving a phantom id in the list.
+        var ambient = Transaction.Current;
+        if (ambient is null)
+        {
+            Push(queue, jobId);
+
+            return;
+        }
+
+        ambient.TransactionCompleted += (_, args) =>
+        {
+            if (args.Transaction?.TransactionInformation.Status != TransactionStatus.Committed)
+            {
+                return;
+            }
+
+            try
+            {
+                Push(queue, jobId);
+            }
+            catch (Exception ex)
+            {
+                // Nothing may escape a TransactionCompleted handler: the transaction has
+                // already committed, and an exception here would surface to whoever is
+                // disposing the scope as though that commit had failed. The reconciler is
+                // the backstop, so log and let it recover the job.
+                Logger.ErrorException(
+                    $"Valkey enqueue of job {jobId} on '{queue}' threw after the Postgres commit; the reconciler will recover it.",
+                    ex);
+            }
+        };
+    }
+
+    /// <summary>
+    /// Publishes the id. Failures are swallowed by design — the job is already durably Enqueued in
+    /// Postgres, so the reconciler recovers it, and failing here instead would fail the caller's job
+    /// creation over a cache being briefly unavailable.
+    /// </summary>
+    private void Push(string queue, string jobId)
+    {
         try
         {
             _mux.GetDatabase().ListLeftPush(_keys.Queue(queue), jobId);
         }
-        catch (RedisConnectionException ex)
+        // RedisTimeoutException derives from TimeoutException, NOT from RedisException, so catching
+        // the Redis hierarchy alone lets a slow Valkey — the likeliest failure of the two — through.
+        // RedisCommandException is deliberately not caught: that is a bug in this library, not an
+        // outage, and it should surface.
+        catch (Exception ex) when (ex is RedisException or TimeoutException)
         {
             Logger.WarnException(
                 $"Valkey LPUSH failed for job {jobId} on '{queue}'; it stays Enqueued in Postgres and the reconciler will recover it.",

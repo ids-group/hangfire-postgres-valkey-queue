@@ -79,11 +79,20 @@ easy to forget — is in [docs/EXAMPLE.md](docs/EXAMPLE.md).
 
 ## Correctness
 
-The enqueue is no longer transactional with job creation (it pushes to Valkey, not PostgreSQL), so two
-safety nets close every failure window:
+The enqueue is no longer transactional with job creation (it pushes to Valkey, not PostgreSQL). Two
+things keep that safe.
+
+**Ordering.** The `LPUSH` is deferred to the enqueueing transaction's `TransactionCompleted`, so an id
+becomes visible to workers only after PostgreSQL has committed `statename = 'Enqueued'`, and a
+rolled-back transaction publishes nothing. Pushing inline would race: a worker parked in `BLMOVE` wakes
+in microseconds, reads a job that is not `Enqueued` yet, and Hangfire's `Worker.Execute` discards it
+from the queue — recoverable, but only by the reconciler, one `ReconcileGrace` +
+`MaintenanceInterval` later.
+
+**Recovery.** Two safety nets close what is left:
 
 - **Reconciler** re-enqueues jobs PostgreSQL reports as `Enqueued` but missing from Valkey (Valkey data
-  loss / failover).
+  loss / failover, or a push that failed after the commit).
 - **Orphan sweep** requeues jobs stuck in a processing list past `InvisibilityTimeout` (worker died
   mid-job).
 
