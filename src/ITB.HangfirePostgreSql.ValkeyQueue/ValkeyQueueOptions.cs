@@ -11,9 +11,23 @@ public sealed class ValkeyQueueOptions
     /// <summary>How long a single BLMOVE blocks waiting for a job before the worker loops.</summary>
     public TimeSpan BlockTimeout { get; set; } = TimeSpan.FromSeconds(2);
 
-    /// <summary>A job sitting in a processing list longer than this is treated as orphaned
-    /// (its worker died) and requeued. Must exceed your longest expected job runtime.</summary>
+    /// <summary>How long a job may go without a heartbeat before the orphan sweep treats it as
+    /// abandoned and requeues it.
+    ///
+    /// <para>This is a liveness window, not a runtime budget: a worker holding a job refreshes its
+    /// timestamp every <see cref="HeartbeatInterval"/>, so a job running for hours is safe as long as
+    /// its process is alive. Size this against how long a dead worker may go unnoticed, and keep it at
+    /// least 3x <see cref="HeartbeatInterval"/> so a single missed tick never requeues a live job.</para>
+    ///
+    /// <para>The 30 minute default is deliberately conservative: it is safe for a fleet still running
+    /// a version of this package that does not send heartbeats. Once every host is on 1.1.0 or later,
+    /// lowering it to a few minutes makes recovery from worker death much faster.</para></summary>
     public TimeSpan InvisibilityTimeout { get; set; } = TimeSpan.FromMinutes(30);
+
+    /// <summary>How often a worker holding a job refreshes its fetched timestamp, proving the job is
+    /// still alive. The refresh only rewrites a timestamp that is still there, so it can never
+    /// resurrect a job the sweep has already requeued.</summary>
+    public TimeSpan HeartbeatInterval { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>How often the reconciler + orphan sweep run.</summary>
     public TimeSpan MaintenanceInterval { get; set; } = TimeSpan.FromSeconds(15);

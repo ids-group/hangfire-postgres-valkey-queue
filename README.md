@@ -44,7 +44,8 @@ var mux = ConnectionMultiplexer.Connect(redisOptions);
 
 var valkey = new ValkeyQueueOptions
 {
-    InvisibilityTimeout = TimeSpan.FromMinutes(30),   // MUST exceed your longest job
+    InvisibilityTimeout = TimeSpan.FromMinutes(30),   // how long a worker may go quiet
+    HeartbeatInterval = TimeSpan.FromMinutes(1),      // keep at most 1/3 of the timeout
     BlockingConnectionConfig = redisOptions,          // required on managed Valkey (TLS + AUTH)
 };
 
@@ -70,7 +71,8 @@ easy to forget — is in [docs/EXAMPLE.md](docs/EXAMPLE.md).
 | --- | --- | --- |
 | `KeyPrefix` | `hangfire:` | Prefix for every Valkey key this provider owns. |
 | `BlockTimeout` | 2 s | How long a single `BLMOVE` blocks before the worker loops. |
-| `InvisibilityTimeout` | 30 min | A job in a processing list longer than this is treated as orphaned. **Must exceed your longest job.** |
+| `InvisibilityTimeout` | 30 min | A job whose worker has not sent a heartbeat for this long is treated as abandoned and requeued. A liveness window, **not** a runtime budget. Must be at least 3x `HeartbeatInterval`. |
+| `HeartbeatInterval` | 1 min | How often a worker refreshes the timestamp of the job it is holding. |
 | `MaintenanceInterval` | 15 s | How often the reconciler and orphan sweep run. |
 | `ReconcileGrace` | 30 s | The reconciler ignores jobs enqueued more recently than this, so it never races an in-flight `LPUSH`. |
 | `Schema` | `hangfire` | The schema Hangfire.PostgreSql created its tables in. |
@@ -99,6 +101,15 @@ from the queue — recoverable, but only by the reconciler, one `ReconcileGrace`
 Both live in `ValkeyQueueMaintenance`. **Without it registered, those failures are silent job loss** —
 this is the one registration step you cannot skip.
 
+### Upgrading to 1.1.0
+
+`InvisibilityTimeout` changed meaning: it is now "no heartbeat for this long", not "longer than your
+longest job". The 30 minute default is unchanged, so an upgrade needs no config change.
+
+Lowering it is a two-step rollout. A host still running 1.0.x sends no heartbeats, so a short timeout
+would have the sweep requeue its live jobs underneath it — running them twice. Deploy 1.1.0
+everywhere first, then lower the timeout.
+
 Duplicates are execution-safe: only one worker wins the `Enqueued → Processing` state transition in
 PostgreSQL; the loser is discarded.
 
@@ -109,7 +120,8 @@ PostgreSQL; the loser is discarded.
 - On managed Valkey (ElastiCache with TLS + AUTH) set `BlockingConnectionConfig`; otherwise the
   blocking connections are derived from the shared multiplexer's connection string, which masks the
   password and every blocking connection fails to authenticate.
-- `InvisibilityTimeout` must exceed your longest-running job or the sweep will re-flag it.
+- `InvisibilityTimeout` is about worker liveness, not job duration: a job running for hours is safe
+  while its process keeps beating. Size it against how long a dead worker may go unnoticed.
 - Keys are wrapped in a `{hash tag}` so all three keys for a queue land in the same cluster hash slot;
   without it, cluster mode rejects the `BLMOVE` with `CROSSSLOT`.
 
