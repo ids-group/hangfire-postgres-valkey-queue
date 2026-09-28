@@ -29,6 +29,9 @@ public class ValkeyJobQueueTests(ValkeyQueueFixture fixture)
     /// <summary>A queue no live Hangfire server listens to.</summary>
     private const string Queue = "valkey-test";
 
+    /// <summary>The fetched-timestamp hash. The monitoring API exposes only the two lists.</summary>
+    private const string FetchedKey = "hangfire:{" + Queue + "}:fetched";
+
     /// <summary>
     /// The reconciler reads <c>{Schema}.job</c> / <c>{Schema}.state</c>, and the schema name is an
     /// option — so these tests point it at their own schema instead of Hangfire's. Creating tables in
@@ -163,6 +166,98 @@ public class ValkeyJobQueueTests(ValkeyQueueFixture fixture)
 
         monitoring.GetFetchedJobIds(Queue, 0, 100).Should().Contain(32);
         monitoring.GetEnqueuedJobIds(Queue, 0, 100).Should().NotContain(32);
+    }
+
+    [Fact]
+    public void A_heartbeating_worker_keeps_a_job_past_the_invisibility_timeout()
+    {
+        using var mux = Connect();
+        var heartbeat = TimeSpan.FromMilliseconds(100);
+        var options = Options(invisibility: TimeSpan.FromMilliseconds(500), heartbeat: heartbeat);
+        var (queue, monitoring) = Build(mux, options);
+        queue.Enqueue(null!, Queue, "41");
+
+        using var fetched = queue.Dequeue([Queue], CancellationToken.None);
+
+        Thread.Sleep(TimeSpan.FromSeconds(2));
+        RunMaintenance(mux, options);
+
+        monitoring.GetFetchedJobIds(Queue, 0, 100).Should().Contain(41,
+            "the worker is alive and beating, so the job is not abandoned");
+        monitoring.GetEnqueuedJobIds(Queue, 0, 100).Should().NotContain(41);
+    }
+
+    [Fact]
+    public void A_job_whose_heartbeat_stopped_is_requeued_once_the_timeout_passes()
+    {
+        using var mux = Connect();
+        var options = Options(invisibility: TimeSpan.FromMilliseconds(300), heartbeat: TimeSpan.FromMilliseconds(100));
+        var (queue, monitoring) = Build(mux, options);
+        queue.Enqueue(null!, Queue, "42");
+
+        queue.Dequeue([Queue], CancellationToken.None).Dispose();
+
+        Thread.Sleep(TimeSpan.FromSeconds(1));
+        RunMaintenance(mux, options);
+
+        monitoring.GetEnqueuedJobIds(Queue, 0, 100).Should().Contain(42,
+            "nothing is refreshing the timestamp any more, so the job is abandoned");
+        monitoring.GetFetchedJobIds(Queue, 0, 100).Should().NotContain(42);
+    }
+
+    [Fact]
+    public void A_heartbeat_cannot_resurrect_a_job_the_sweep_already_requeued()
+    {
+        using var mux = Connect();
+        var options = Options(invisibility: TimeSpan.Zero, heartbeat: TimeSpan.FromMilliseconds(100));
+        var (queue, monitoring) = Build(mux, options);
+        queue.Enqueue(null!, Queue, "43");
+
+        var fetched = queue.Dequeue([Queue], CancellationToken.None);
+        RunMaintenance(mux, options);
+
+        Thread.Sleep(TimeSpan.FromMilliseconds(500));
+
+        mux.GetDatabase().HashExists(FetchedKey, "43").Should().BeFalse(
+            "a heartbeat must only refresh a timestamp that is still there");
+        monitoring.GetEnqueuedJobIds(Queue, 0, 100).Should().Contain(43);
+
+        fetched.Dispose();
+    }
+
+    [Fact]
+    public void A_job_acked_during_a_sweep_is_not_pushed_back_as_a_ghost()
+    {
+        using var mux = Connect();
+        var options = Options(invisibility: TimeSpan.Zero);
+        var (queue, monitoring) = Build(mux, options);
+        queue.Enqueue(null!, Queue, "44");
+
+        var fetched = queue.Dequeue([Queue], CancellationToken.None);
+
+        fetched.RemoveFromQueue();
+        RunMaintenance(mux, options);
+
+        monitoring.GetEnqueuedJobIds(Queue, 0, 100).Should().NotContain(44,
+            "the job completed, so there is nothing to recover");
+        monitoring.GetFetchedJobIds(Queue, 0, 100).Should().NotContain(44);
+    }
+
+    [Fact]
+    public void Acking_a_job_stops_its_heartbeat()
+    {
+        using var mux = Connect();
+        var options = Options(heartbeat: TimeSpan.FromMilliseconds(100));
+        var (queue, monitoring) = Build(mux, options);
+        queue.Enqueue(null!, Queue, "45");
+
+        var fetched = queue.Dequeue([Queue], CancellationToken.None);
+        fetched.RemoveFromQueue();
+
+        Thread.Sleep(TimeSpan.FromMilliseconds(500));
+
+        Count(monitoring).Should().Be(new QueueCounts(0, 0),
+            "the heartbeat stops with the job, so no timestamp comes back");
     }
 
     [Fact]
@@ -380,19 +475,25 @@ public class ValkeyJobQueueTests(ValkeyQueueFixture fixture)
         return (cmd.ExecuteScalar() as string) == "jsonb" ? "::jsonb" : string.Empty;
     }
 
-    private ValkeyQueueOptions Options(TimeSpan? invisibility = null, TimeSpan? reconcileGrace = null) => new ()
-    {
-        Queues = [Queue],
-        Schema = Schema,
-        InvisibilityTimeout = invisibility ?? TimeSpan.FromMinutes(30),
-        ReconcileGrace = reconcileGrace ?? TimeSpan.FromSeconds(30),
-        MaintenanceInterval = TimeSpan.Zero,
-        BlockingConnectionConfig = _fixture.RedisConfig(),
-    };
+    private ValkeyQueueOptions Options(
+        TimeSpan? invisibility = null,
+        TimeSpan? reconcileGrace = null,
+        TimeSpan? heartbeat = null) => new()
+        {
+            Queues = [Queue],
+            Schema = Schema,
+            InvisibilityTimeout = invisibility ?? TimeSpan.FromMinutes(30),
+            ReconcileGrace = reconcileGrace ?? TimeSpan.FromSeconds(30),
+            HeartbeatInterval = heartbeat ?? TimeSpan.Zero,
+            MaintenanceInterval = TimeSpan.Zero,
+            BlockingConnectionConfig = _fixture.RedisConfig(),
+        };
 
-    private (IPersistentJobQueue Queue, IPersistentJobQueueMonitoringApi Monitoring) Build(IConnectionMultiplexer mux)
+    private (IPersistentJobQueue Queue, IPersistentJobQueueMonitoringApi Monitoring) Build(
+        IConnectionMultiplexer mux,
+        ValkeyQueueOptions? options = null)
     {
-        var provider = new ValkeyJobQueueProvider(mux, Options());
+        var provider = new ValkeyJobQueueProvider(mux, options ?? Options());
 
         return (provider.GetJobQueue(), provider.GetJobQueueMonitoringApi());
     }

@@ -17,6 +17,18 @@ namespace Hangfire.PostgreSql.ValkeyQueue;
 /// Registered as an <see cref="IBackgroundProcess"/>, so <c>AddHangfireServer</c> picks it up.</summary>
 public sealed class ValkeyQueueMaintenance : IBackgroundProcess
 {
+    private const string SweepScript = @"
+        local fetchedAt = redis.call('HGET', KEYS[1], ARGV[1])
+        if fetchedAt and tonumber(fetchedAt) > tonumber(ARGV[2]) then
+            return 0
+        end
+        if redis.call('LREM', KEYS[2], 1, ARGV[1]) == 0 then
+            return 0
+        end
+        redis.call('HDEL', KEYS[1], ARGV[1])
+        redis.call('RPUSH', KEYS[3], ARGV[1])
+        return 1";
+
     private static readonly ILog Logger = LogProvider.For<ValkeyQueueMaintenance>();
 
     private readonly IConnectionMultiplexer _mux;
@@ -77,12 +89,15 @@ public sealed class ValkeyQueueMaintenance : IBackgroundProcess
                     continue;
                 }
 
-                var batch = db.CreateBatch();
-                _ = batch.ListRemoveAsync(_keys.Processing(queue), jobId, count: 1);
-                _ = batch.HashDeleteAsync(_keys.Fetched(queue), jobId);
-                _ = batch.ListRightPushAsync(_keys.Queue(queue), jobId);
-                batch.Execute();
-                requeued++;
+                var result = (long)db.ScriptEvaluate(
+                    SweepScript,
+                    [_keys.Fetched(queue), _keys.Processing(queue), _keys.Queue(queue)],
+                    [jobId, cutoff]);
+
+                if (result == 1)
+                {
+                    requeued++;
+                }
             }
 
             if (requeued > 0)

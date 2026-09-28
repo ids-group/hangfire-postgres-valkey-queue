@@ -80,9 +80,13 @@ var valkeyOptions = new ValkeyQueueOptions
 {
     Queues = ["default"],
 
-    // MUST exceed your longest-running job, or the orphan sweep will requeue a job that is
-    // still being worked and you will run it twice.
+    // How long a worker may go silent before its job is treated as abandoned. A worker holding
+    // a job refreshes this every HeartbeatInterval, so a long job is safe while its process is
+    // alive — size this against how long a dead worker may go unnoticed, not against job length.
     InvisibilityTimeout = TimeSpan.FromMinutes(30),
+
+    // Must be at most a third of InvisibilityTimeout, so one missed beat never costs a live job.
+    HeartbeatInterval = TimeSpan.FromMinutes(1),
 
     // Required whenever AUTH or TLS is in play (i.e. any managed Valkey). Without it the
     // dedicated blocking connections are rebuilt from mux.Configuration, which MASKS the
@@ -170,7 +174,7 @@ without `UseValkeyQueues` — that is exactly what [LOAD-TEST.md](LOAD-TEST.md) 
 | Symptom | Cause |
 | --- | --- |
 | Jobs enqueue but nothing is ever processed on managed Valkey | `BlockingConnectionConfig` not set — blocking connections lost the password. |
-| A long job runs twice | `InvisibilityTimeout` is shorter than the job; the orphan sweep reclaimed it. |
+| A long job runs twice | Heartbeats are not reaching Valkey, or a host is still on 1.0.x where there are none. Check the warning log and that `InvisibilityTimeout` is at least 3x `HeartbeatInterval`. |
 | Jobs vanish after a Valkey failover | `ValkeyQueueMaintenance` not registered, so the reconciler never runs. |
 | `CROSSSLOT` errors on a Valkey cluster | A custom `KeyPrefix` that breaks the `{queue}` hash tag. Keep the prefix free of braces. |
 | The reconciler logs data-loss warnings constantly | `Schema` does not match Hangfire's actual schema, so it reads the wrong tables. |
